@@ -2,4 +2,5 @@
 nohup.out
 audio_files/
 background_music/
+youtube_cache/
 __pycache__/

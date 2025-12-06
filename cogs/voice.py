@@ -58,16 +58,6 @@ class Voice(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"couldn't join: {e}")
 
-    @commands.command()
-    async def leave(self, ctx):
-        if ctx.voice_client is None:
-            await ctx.send("not in a voice channel")
-            return
-
-        self.idle_player.stop_idle_task(ctx.guild.id)
-        await ctx.voice_client.disconnect(force=True)
-        await ctx.send("left")
-
     @app_commands.command(name="leave", description="leave voice channel")
     async def leave_slash(self, interaction: discord.Interaction):
         if interaction.guild is None:
@@ -85,23 +75,6 @@ class Voice(commands.Cog):
         self.idle_player.stop_idle_task(interaction.guild.id)
         await voice_client.disconnect(force=True)
         await interaction.response.send_message("left")
-
-    @commands.command()
-    async def play(self, ctx, *, filepath: str):
-        if ctx.voice_client is None:
-            await ctx.send("not in a voice channel, use !join first")
-            return
-
-        if not self.files.file_exists(filepath):
-            await ctx.send("file not found")
-            return
-
-        if ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-
-        self.idle_player.update_activity(ctx.guild.id)
-        ctx.voice_client.play(discord.FFmpegPCMAudio(filepath))
-        await ctx.send("playing")
 
     @app_commands.command(name="upload", description="upload an mp3 to play later")
     async def upload(self, interaction: discord.Interaction, file: discord.Attachment):
@@ -158,6 +131,15 @@ class Voice(commands.Cog):
             )
             return
 
+        queue_cog = self.bot.get_cog("MusicQueue")
+        if queue_cog is None:
+            await interaction.response.send_message("queue system not loaded")
+            return
+
+        metadata = {"title": filename, "artist": "unknown", "album": "unknown"}
+        guild_id = interaction.guild.id
+        queue_cog.add_to_queue(guild_id, filepath, metadata, False)
+
         voice_client = interaction.guild.voice_client
 
         if voice_client is None:
@@ -168,15 +150,12 @@ class Voice(commands.Cog):
                 )
                 return
             voice_client = await channel.connect()
-            self.idle_player.start_idle_task(interaction.guild.id, voice_client)
+            self.idle_player.start_idle_task(guild_id, voice_client)
 
-        if isinstance(voice_client, discord.VoiceClient) and voice_client.is_playing():
-            voice_client.stop()
-
-        self.idle_player.update_activity(interaction.guild.id)
         if isinstance(voice_client, discord.VoiceClient):
-            voice_client.play(discord.FFmpegPCMAudio(filepath))
-            await interaction.response.send_message(f"playing {filename}")
+            if not voice_client.is_playing():
+                queue_cog.play_next(guild_id, voice_client)
+            await interaction.response.send_message(f"added {filename} to queue")
         else:
             await interaction.response.send_message(
                 "Failed to play: not connected to a voice channel properly."
