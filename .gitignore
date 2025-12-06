@@ -1,3 +1,4 @@
 .env
 nohup.out
 audio_files/
+__pycache__/
