@@ -26,7 +26,7 @@ async def on_ready():
 
 async def load_extensions():
     for filename in os.listdir("./cogs"):
-        if filename.endswith(".py"):
+        if filename.endswith(".py") and not filename.startswith("_"):
             try:
                 await bot.load_extension(f"cogs.{filename[:-3]}")
                 print(f"loaded {filename}")
@@ -37,7 +37,10 @@ async def load_extensions():
 async def main():
     async with bot:
         await load_extensions()
-        await bot.start(os.getenv("DISCORD_TOKEN"))
+        token = os.getenv("DISCORD_TOKEN")
+        if not token:
+            raise RuntimeError("DISCORD_TOKEN environment variable not set.")
+        await bot.start(token)
 
 
 if __name__ == "__main__":
