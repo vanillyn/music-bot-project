@@ -1,4 +1,5 @@
 .env
 nohup.out
 audio_files/
+background_music/
 __pycache__/
