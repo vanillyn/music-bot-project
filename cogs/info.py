@@ -46,7 +46,7 @@ class NowPlaying(commands.Cog):
             await interaction.response.send_message("only works in servers")
             return
 
-        queue_cog = self.bot.get_cog("MusicQueue")
+        queue_cog = self.bot.get_cog("Queue")
         if queue_cog is None:
             await interaction.response.send_message("queue system not loaded")
             return
