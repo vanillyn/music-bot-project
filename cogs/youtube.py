@@ -103,7 +103,7 @@ class YouTube(commands.Cog):
             await interaction.followup.send("couldn't download audio")
             return
 
-        queue_cog = self.bot.get_cog("MusicQueue")
+        queue_cog = self.bot.get_cog("Queue")
         if queue_cog is None:
             await interaction.followup.send("queue system not loaded")
             return
