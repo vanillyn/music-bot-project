@@ -1,7 +1,7 @@
 import asyncio
 import random
 import discord
-from typing import Dict, Any
+from typing import Dict
 from .files import Files
 
 
@@ -9,7 +9,7 @@ class Idle:
     def __init__(self) -> None:
         self.files: Files = Files()
         self.idle_enabled: Dict[int, bool] = {}
-        self.idle_tasks: Dict[int, asyncio.Task[Any]] = {}
+        self.idle_tasks: Dict[int, asyncio.Task[None]] = {}
         self.last_activity: Dict[int, float] = {}
 
     def set_idle_enabled(self, guild_id: int, enabled: bool) -> None:

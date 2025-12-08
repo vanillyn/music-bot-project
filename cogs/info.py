@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, ui
 from mutagen import File
 from typing import Dict
 
 
 class NowPlaying(commands.Cog):
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
     def get_file_metadata(self, filepath: str) -> Dict[str, str]:
@@ -41,7 +41,7 @@ class NowPlaying(commands.Cog):
             return {"title": "unknown", "artist": "unknown", "album": "unknown"}
 
     @app_commands.command(name="info", description="show info about current song")
-    async def info(self, interaction: discord.Interaction):
+    async def info(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -60,44 +60,59 @@ class NowPlaying(commands.Cog):
 
         metadata = current.metadata
 
-        embed = discord.Embed(title="now playing", color=0x5865F2)
+        class InfoLayout(ui.LayoutView):
+            container = ui.Container(
+                ui.Section(
+                    ui.TextDisplay("## now playing"),
+                ),
+                ui.Separator(spacing=ui.SeparatorSpacing.small, dividing_line=True),
+                accent_color=0x5865F2,
+            )
+
+        layout = InfoLayout()
 
         if current.is_youtube:
-            embed.add_field(
-                name="title", value=metadata.get("title", "unknown"), inline=False
-            )
-            embed.add_field(
-                name="uploader", value=metadata.get("uploader", "unknown"), inline=False
-            )
+            title = metadata.get("title", "unknown")
+            uploader = metadata.get("uploader", "unknown")
 
+            duration_str = "unknown"
             duration = metadata.get("duration", "0")
             try:
                 dur_seconds = int(float(duration))
                 minutes = dur_seconds // 60
                 seconds = dur_seconds % 60
-                embed.add_field(
-                    name="duration", value=f"{minutes}:{seconds:02d}", inline=False
-                )
+                duration_str = f"{minutes}:{seconds:02d}"
             except Exception:
-                embed.add_field(name="duration", value="unknown", inline=False)
+                pass
+
+            layout.container.add_item(
+                ui.Section(
+                    ui.TextDisplay(
+                        f"**{title}**\n{uploader}\n\nduration: {duration_str}\nsource: youtube"
+                    ),
+                )
+            )
 
             thumbnail = metadata.get("thumbnail", "")
             if thumbnail:
-                embed.set_thumbnail(url=thumbnail)
+                try:
+                    layout.container.add_item(
+                        ui.MediaGallery(ui.MediaGalleryItem(thumbnail))
+                    )
+                except Exception:
+                    pass
         else:
             file_meta = self.get_file_metadata(current.filepath)
-            embed.add_field(name="title", value=file_meta["title"], inline=False)
-            embed.add_field(name="artist", value=file_meta["artist"], inline=False)
-            embed.add_field(name="album", value=file_meta["album"], inline=False)
+            layout.container.add_item(
+                ui.Section(
+                    ui.TextDisplay(
+                        f"**{file_meta['title']}**\n{file_meta['artist']}\n\nalbum: {file_meta['album']}\nsource: uploaded file"
+                    ),
+                )
+            )
 
-        embed.add_field(
-            name="source",
-            value="youtube" if current.is_youtube else "uploaded file",
-            inline=False,
-        )
-
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=layout)
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(NowPlaying(bot))

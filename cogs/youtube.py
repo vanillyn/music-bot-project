@@ -8,7 +8,7 @@ from typing import Optional, Dict
 
 
 class YouTube(commands.Cog):
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.cache_dir: str = "youtube_cache"
         os.makedirs(self.cache_dir, exist_ok=True)
@@ -81,7 +81,7 @@ class YouTube(commands.Cog):
             return None
 
     @app_commands.command(name="play", description="play audio from youtube url")
-    async def play(self, interaction: discord.Interaction, url: str):
+    async def play(self, interaction: discord.Interaction, url: str) -> None:
         await interaction.response.defer()
 
         if interaction.guild is None:
@@ -132,5 +132,5 @@ class YouTube(commands.Cog):
             await interaction.followup.send("not connected properly")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(YouTube(bot))

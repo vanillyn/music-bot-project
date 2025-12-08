@@ -14,8 +14,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 @bot.event
-async def on_ready():
-    print(f"logged in as {bot.user}")
+async def on_ready() -> None:
+    print(f"venti started as {bot.user}")
     print(f"connected to {len(bot.guilds)} guilds")
     try:
         synced = await bot.tree.sync()
@@ -24,7 +24,7 @@ async def on_ready():
         print(f"failed to sync commands: {e}")
 
 
-async def load_extensions():
+async def load_extensions() -> None:
     for filename in os.listdir("./cogs"):
         if filename.endswith(".py") and not filename.startswith("_"):
             try:
@@ -34,7 +34,7 @@ async def load_extensions():
                 print(f"failed to load {filename}: {e}")
 
 
-async def main():
+async def main() -> None:
     async with bot:
         await load_extensions()
         token = os.getenv("DISCORD_TOKEN")

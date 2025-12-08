@@ -1,18 +1,18 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, ui
 from .files import Files
 from .idle import Idle
 
 
 class Voice(commands.Cog):
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.files = Files()
         self.idle_player = Idle()
 
     @commands.command()
-    async def join(self, ctx):
+    async def join(self, ctx: commands.Context) -> None:
         print(f"join command called by {ctx.author}")
 
         if ctx.author.voice is None:
@@ -27,13 +27,14 @@ class Voice(commands.Cog):
             voice_client = await channel.connect()
             print(f"connected successfully: {voice_client}")
             await ctx.send("joined")
-            self.idle_player.start_idle_task(ctx.guild.id, voice_client)
+            if ctx.guild is not None:
+                self.idle_player.start_idle_task(ctx.guild.id, voice_client)
         except Exception as e:
             print(f"failed to connect: {e}")
             await ctx.send(f"couldn't join: {e}")
 
     @app_commands.command(name="join", description="join your voice channel")
-    async def join_slash(self, interaction: discord.Interaction):
+    async def join_slash(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message(
                 "this command can only be used in a server"
@@ -59,7 +60,7 @@ class Voice(commands.Cog):
             await interaction.response.send_message(f"couldn't join: {e}")
 
     @app_commands.command(name="leave", description="leave voice channel")
-    async def leave_slash(self, interaction: discord.Interaction):
+    async def leave_slash(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message(
                 "this command can only be used in a server"
@@ -77,7 +78,9 @@ class Voice(commands.Cog):
         await interaction.response.send_message("left")
 
     @app_commands.command(name="upload", description="upload an mp3 to play later")
-    async def upload(self, interaction: discord.Interaction, file: discord.Attachment):
+    async def upload(
+        self, interaction: discord.Interaction, file: discord.Attachment
+    ) -> None:
         await interaction.response.defer()
 
         if not self.files.is_valid_audio(file.filename):
@@ -98,20 +101,42 @@ class Voice(commands.Cog):
             await interaction.followup.send(f"failed to save file: {e}")
 
     @app_commands.command(name="list", description="list uploaded audio files")
-    async def list_files(self, interaction: discord.Interaction):
+    async def list_files(self, interaction: discord.Interaction) -> None:
         files = self.files.list_audio_files()
 
         if not files:
             await interaction.response.send_message("no files uploaded yet")
             return
 
-        file_list = "\n".join(files)
-        await interaction.response.send_message(
-            f"available files:\n```\n{file_list}\n```"
-        )
+        class FilesLayout(ui.LayoutView):
+            container = ui.Container(
+                ui.Section(
+                    ui.TextDisplay("## saved audio files"),
+                ),
+                ui.Separator(spacing=ui.SeparatorSpacing.small, dividing_line=True),
+                accent_color=0x5865F2,
+            )
+
+        layout = FilesLayout()
+
+        file_chunks = [files[i : i + 15] for i in range(0, len(files), 15)]
+
+        for chunk in file_chunks:
+            file_text = "\n".join(f"• {f}" for f in chunk)
+            layout.container.add_item(
+                ui.Section(
+                    ui.TextDisplay(file_text),
+                )
+            )
+            if chunk != file_chunks[-1]:
+                layout.container.add_item(
+                    ui.Separator(spacing=ui.SeparatorSpacing.small)
+                )
+
+        await interaction.response.send_message(view=layout)
 
     @app_commands.command(name="playfile", description="play an uploaded file")
-    async def playfile(self, interaction: discord.Interaction, filename: str):
+    async def playfile(self, interaction: discord.Interaction, filename: str) -> None:
         if interaction.guild is None:
             await interaction.response.send_message(
                 "this command can only be used in a server"
@@ -162,7 +187,7 @@ class Voice(commands.Cog):
             )
 
     @app_commands.command(name="idle", description="toggle idle background music")
-    async def idle_toggle(self, interaction: discord.Interaction, mode: str):
+    async def idle_toggle(self, interaction: discord.Interaction, mode: str) -> None:
         if interaction.guild is None:
             await interaction.response.send_message(
                 "this command can only be used in a server"
@@ -189,5 +214,5 @@ class Voice(commands.Cog):
             await interaction.response.send_message("idle mode disabled")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Voice(bot))

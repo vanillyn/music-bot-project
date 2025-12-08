@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+from discord import app_commands, ui
 from collections import deque
 from typing import Dict, Deque, Optional
 import random
@@ -14,7 +14,7 @@ class QueueItem:
 
 
 class Queue(commands.Cog):
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.queues: Dict[int, Deque[QueueItem]] = {}
         self.current: Dict[int, Optional[QueueItem]] = {}
@@ -69,9 +69,11 @@ class Queue(commands.Cog):
     def play_next(self, guild_id: int, voice_client: discord.VoiceClient) -> None:
         if self.current.get(guild_id) is not None:
             history = self.get_history(guild_id)
-            history.append(self.current[guild_id])
-            if len(history) > 50:
-                history.popleft()
+            current_item = self.current[guild_id]
+            if current_item is not None:
+                history.append(current_item)
+                if len(history) > 50:
+                    history.popleft()
 
         next_item = self.get_next(guild_id)
         if next_item is None:
@@ -80,7 +82,7 @@ class Queue(commands.Cog):
 
         self.current[guild_id] = next_item
 
-        def after_playing(error):
+        def after_playing(error: Optional[Exception]) -> None:
             if error:
                 print(f"playback error: {error}")
             self.play_next(guild_id, voice_client)
@@ -90,7 +92,7 @@ class Queue(commands.Cog):
         )
 
     @app_commands.command(name="queue", description="show current queue")
-    async def show_queue(self, interaction: discord.Interaction):
+    async def show_queue(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -103,32 +105,61 @@ class Queue(commands.Cog):
             await interaction.response.send_message("queue is empty")
             return
 
-        lines = []
+        class QueueLayout(ui.LayoutView):
+            container = ui.Container(
+                ui.Section(
+                    ui.TextDisplay("## music queue"),
+                ),
+                ui.Separator(spacing=ui.SeparatorSpacing.small, dividing_line=True),
+                accent_color=0x5865F2,
+            )
+
+        layout = QueueLayout()
 
         if current:
-            lines.append(
-                f"**now playing:**\n{current.metadata.get('title', 'unknown')}"
+            current_title = current.metadata.get("title", "unknown")
+            layout.container.add_item(
+                ui.Section(
+                    ui.TextDisplay(f"**now playing**\n{current_title}"),
+                )
             )
-            lines.append("")
+            layout.container.add_item(
+                ui.Separator(spacing=ui.SeparatorSpacing.small, dividing_line=True)
+            )
 
         if queue:
-            lines.append("**up next:**")
+            queue_text = "**up next**\n"
             for i, item in enumerate(list(queue)[:10], 1):
                 title = item.metadata.get("title", "unknown")
-                lines.append(f"{i}. {title}")
+                queue_text += f"{i}. {title}\n"
 
             if len(queue) > 10:
-                lines.append(f"... and {len(queue) - 10} more")
+                queue_text += f"\n... and {len(queue) - 10} more"
+
+            layout.container.add_item(
+                ui.Section(
+                    ui.TextDisplay(queue_text.strip()),
+                )
+            )
+            layout.container.add_item(
+                ui.Separator(spacing=ui.SeparatorSpacing.small, dividing_line=True)
+            )
 
         loop = self.loop_mode.get(guild_id, "off")
         shuffle = self.shuffle_enabled.get(guild_id, False)
-        lines.append("")
-        lines.append(f"loop: {loop} | shuffle: {'on' if shuffle else 'off'}")
 
-        await interaction.response.send_message("\n".join(lines))
+        layout.container.add_item(
+            ui.Section(
+                ui.TextDisplay(
+                    f"loop: {loop}  •  shuffle: {'on' if shuffle else 'off'}"
+                ),
+            )
+        )
+
+        await interaction.response.send_message(view=layout)
 
     @app_commands.command(name="skip", description="skip to next song")
-    async def skip(self, interaction: discord.Interaction):
+    async def skip(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -144,7 +175,7 @@ class Queue(commands.Cog):
         await interaction.response.send_message("skipped")
 
     @app_commands.command(name="stop", description="stop playing but dont leave")
-    async def stop(self, interaction: discord.Interaction):
+    async def stop(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -163,7 +194,7 @@ class Queue(commands.Cog):
         await interaction.response.send_message("stopped")
 
     @app_commands.command(name="previous", description="go back to previous song")
-    async def previous(self, interaction: discord.Interaction):
+    async def previous(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -179,7 +210,9 @@ class Queue(commands.Cog):
 
         if self.current.get(guild_id) is not None:
             queue = self.get_queue(guild_id)
-            queue.appendleft(self.current[guild_id])
+            current_item = self.current[guild_id]
+            if current_item is not None:
+                queue.appendleft(current_item)
 
         voice_client = interaction.guild.voice_client
         if voice_client is None or not isinstance(voice_client, discord.VoiceClient):
@@ -188,7 +221,7 @@ class Queue(commands.Cog):
 
         self.current[guild_id] = prev_item
 
-        def after_playing(error):
+        def after_playing(error: Optional[Exception]) -> None:
             if error:
                 print(f"playback error: {error}")
             self.play_next(guild_id, voice_client)
@@ -204,7 +237,7 @@ class Queue(commands.Cog):
         )
 
     @app_commands.command(name="shuffle", description="toggle shuffle mode")
-    async def shuffle(self, interaction: discord.Interaction, mode: str):
+    async def shuffle(self, interaction: discord.Interaction, mode: str) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -222,7 +255,7 @@ class Queue(commands.Cog):
         )
 
     @app_commands.command(name="loop", description="set loop mode (single, queue, off)")
-    async def loop(self, interaction: discord.Interaction, mode: str):
+    async def loop(self, interaction: discord.Interaction, mode: str) -> None:
         if interaction.guild is None:
             await interaction.response.send_message("only works in servers")
             return
@@ -240,5 +273,5 @@ class Queue(commands.Cog):
         await interaction.response.send_message(f"loop mode: {mode_lower}")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Queue(bot))
