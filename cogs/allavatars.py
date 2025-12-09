@@ -20,6 +20,8 @@ class Avatars(commands.Cog):
             await interaction.followup.send("only works in servers")
             return
 
+        await interaction.guild.chunk()
+
         temp_dir = Path("temp_avatars")
         temp_dir.mkdir(exist_ok=True)
 
