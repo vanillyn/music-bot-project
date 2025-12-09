@@ -3,7 +3,9 @@ from discord.ext import commands
 from discord import app_commands
 import aiohttp
 import zipfile
+import os
 from pathlib import Path
+import asyncio
 from PIL import Image
 import io
 
