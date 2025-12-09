@@ -4,6 +4,7 @@ from discord import app_commands
 import aiohttp
 import zipfile
 from pathlib import Path
+import asyncio
 from PIL import Image
 import io
 
@@ -29,8 +30,25 @@ class Avatars(commands.Cog):
         print(f"members before chunk: {len(interaction.guild.members)}")
 
         try:
-            await interaction.guild.chunk()
+            print("starting chunk with timeout...")
+            await asyncio.wait_for(interaction.guild.chunk(), timeout=30.0)
             print("chunk completed")
+        except asyncio.TimeoutError:
+            print("chunk timed out, using cached members only")
+            await interaction.followup.send(
+                "using cached members only (some may be missing)"
+            )
+        except discord.HTTPException as e:
+            if e.status == 429:
+                print(f"rate limited: {e}")
+                await interaction.followup.send(
+                    "got rate limited, try again in a minute"
+                )
+                return
+            else:
+                print(f"http error during chunk: {e}")
+                await interaction.followup.send(f"discord api error: {e}")
+                return
         except Exception as e:
             print(f"chunk failed: {e}")
             await interaction.followup.send(f"failed to load members: {e}")
