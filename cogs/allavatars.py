@@ -16,19 +16,25 @@ class Avatars(commands.Cog):
         name="avatars", description="download all server avatars as zip"
     )
     async def avatars(self, interaction: discord.Interaction):
+        print("=== AVATARS COMMAND STARTED ===")
+
         await interaction.response.defer()
+        print("deferred response")
 
         if interaction.guild is None:
             await interaction.followup.send("only works in servers")
             return
 
-        print(f"starting avatar download for {interaction.guild.name}")
+        print(f"guild: {interaction.guild.name}")
         print(f"members before chunk: {len(interaction.guild.members)}")
 
         try:
             await interaction.guild.chunk()
+            print("chunk completed")
         except Exception as e:
             print(f"chunk failed: {e}")
+            await interaction.followup.send(f"failed to load members: {e}")
+            return
 
         print(f"members after chunk: {len(interaction.guild.members)}")
 
